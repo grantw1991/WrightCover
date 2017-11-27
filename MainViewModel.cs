@@ -8,14 +8,14 @@ using EnvDTE;
 
 namespace WrightCover
 {
+    public enum ProjectType
+    {
+        DotNetCore,
+        DotNetFramework
+    }
+
     public class MainViewModel
     {
-        public enum ProjectType
-        {
-            DotNetCore,
-            DotNetFramework
-        }
-
         public ObservableCollection<LoadedProject> TestProjects { get; set; }
         public ObservableCollection<LoadedProject> AssemblyProjects { get; set; }
 
@@ -24,6 +24,7 @@ namespace WrightCover
         public ICommand LoadProjectsCommand => new RelayCommand(LoadProjects);
         public ICommand ClearLogCommand => new RelayCommand(() => LogMessages.Clear());
         public ICommand CopyLogCommand => new RelayCommand(CopyLog, () => LogMessages.Any());
+        public ProjectType ProjectType { get; set; }
 
         public MainViewModel()
         {
@@ -35,15 +36,22 @@ namespace WrightCover
 
         private ProjectType FindProjectType()
         {
-            return Common.Instance.Dte2Object.Solution.Projects
-                .Cast<Project>()
-                .Any(project => project.Properties.Item("TargetFrameworkMoniker").Value.ToString().ToLower().Contains("core")) ?
-                    ProjectType.DotNetCore :
-                    ProjectType.DotNetFramework;
+            foreach (Project project in Common.Instance.Dte2Object.Solution.Projects)
+            {
+                if (project.Name.Contains(".Test"))
+                {
+                    return project.Properties.Item("TargetFrameworkMoniker").Value.ToString().ToLower().Contains("core") ? ProjectType.DotNetCore : ProjectType.DotNetFramework;
+                }
+            }
+
+            throw new Exception("cannot determine target framework on test project(s)");
         }
 
         private void LoadProjects()
         {
+
+            ProjectType = FindProjectType();
+
             try
             {
                 LogMessages.Add(LogMessage.Log("Loading projects", LogMessage.LogType.Info));
@@ -54,8 +62,6 @@ namespace WrightCover
                 
                 foreach (Project project in projects)
                 {
-                    //var projectFramework = project.Properties.Item("TargetFrameworkMoniker").Value;
-
                     if (!project.Name.Contains(".Test"))
                     {
                         if (project.Name.StartsWith("BeagleStreet."))
@@ -67,12 +73,14 @@ namespace WrightCover
                         continue;
                     }
 
-                    var filePath = $"{Path.GetDirectoryName(project.FileName)}\\bin\\debug\\{project.Name}.dll";
-
+                    var filePath = ProjectType == ProjectType.DotNetCore ? 
+                        $"{Path.GetDirectoryName(project.FileName)}\\{project.Name}.csproj" : 
+                        $"{Path.GetDirectoryName(project.FileName)}\\bin\\debug\\{project.Name}.dll";
+                    
                     if (File.Exists(filePath))
                     {
                         LogMessages.Add(LogMessage.Log($"Loaded test project {filePath}", LogMessage.LogType.Success));
-                        TestProjects.Add(new LoadedProject { IsSelected = false, Name = project.Name, AssemblyFilePath = filePath });
+                        TestProjects.Add(new LoadedProject { IsSelected = true, Name = project.Name, AssemblyFilePath = filePath });
                     }
                     else
                     {
@@ -107,25 +115,51 @@ namespace WrightCover
                     return;
                 }
 
-                var runAllBatchFileLocation = Utilities.GetAssemblyDirectory + "\\runall.bat";
-                var runTestsBatchFileLocation = Utilities.GetAssemblyDirectory + "\\runtests.bat";
-
-                LogMessages.Add(LogMessage.Log($"Generating runtests.bat file to: {runTestsBatchFileLocation}", LogMessage.LogType.Info));
-                BatchFileHelper.CreateRunTestsBatchFile(TestProjects.Where(a => a.IsSelected), runTestsBatchFileLocation);
-                LogMessages.Add(LogMessage.Log("Generated runtests.bat", LogMessage.LogType.Success));
-
-                LogMessages.Add(LogMessage.Log($"Generating runall.bat to: {runAllBatchFileLocation}", LogMessage.LogType.Info));
-                BatchFileHelper.CreateRunAllBatchFile(AssemblyProjects.Where(a => a.IsSelected), runAllBatchFileLocation);
-                LogMessages.Add(LogMessage.Log("Generated runall.bat", LogMessage.LogType.Success));
-
-                BatchFileHelper.RunBatchFile(runAllBatchFileLocation);
-                LogMessages.Add(LogMessage.Log("Successfully ran main batch file", LogMessage.LogType.Success));
+                if (ProjectType == ProjectType.DotNetCore)
+                {
+                    //// run dot net core implementation
+                    RunDotNetCoreImplementation();
+                }
+                else
+                {
+                    // run dot net framework implementation
+                    RunDotNetFrameworkImplementation();
+                }
             }
             catch (Exception e)
             {
                 MessageBox.Show(e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 LogMessages.Add(LogMessage.Log(e.Message, LogMessage.LogType.Error));
             }
+        }
+
+        private void RunDotNetFrameworkImplementation()
+        {
+            var runAllBatchFileLocation = Utilities.GetAssemblyDirectory + "\\runall.bat";
+            var runTestsBatchFileLocation = Utilities.GetAssemblyDirectory + "\\runtests.bat";
+
+            LogMessages.Add(LogMessage.Log($"Generating runtests.bat file to: {runTestsBatchFileLocation}", LogMessage.LogType.Info));
+            BatchFileHelper.CreateRunTestsBatchFile(TestProjects.Where(a => a.IsSelected), runTestsBatchFileLocation);
+            LogMessages.Add(LogMessage.Log("Generated runtests.bat", LogMessage.LogType.Success));
+
+            LogMessages.Add(LogMessage.Log($"Generating runall.bat to: {runAllBatchFileLocation}", LogMessage.LogType.Info));
+            BatchFileHelper.CreateRunAllBatchFile(AssemblyProjects.Where(a => a.IsSelected), runAllBatchFileLocation);
+            LogMessages.Add(LogMessage.Log("Generated runall.bat", LogMessage.LogType.Success));
+
+            BatchFileHelper.RunBatchFile(runAllBatchFileLocation);
+            LogMessages.Add(LogMessage.Log("Successfully ran main batch file", LogMessage.LogType.Success));
+        }
+
+        private void RunDotNetCoreImplementation()
+        {
+            var runAllBatchFileLocation = Utilities.GetAssemblyDirectory + "\\rundotnetcore.bat";
+         
+            LogMessages.Add(LogMessage.Log($"Generating rundotnetcore.bat file to: {runAllBatchFileLocation}", LogMessage.LogType.Info));
+            BatchFileHelper.CreateDotNetCoreBatchFile(TestProjects.Where(a => a.IsSelected), runAllBatchFileLocation);
+            LogMessages.Add(LogMessage.Log("Generated rundotnetcore.bat", LogMessage.LogType.Success));
+
+            BatchFileHelper.RunBatchFile(runAllBatchFileLocation);
+            LogMessages.Add(LogMessage.Log("Successfully rundotnetcore.bat batch file", LogMessage.LogType.Success));
         }
 
         private void CopyLog()
