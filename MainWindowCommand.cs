@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel.Design;
-using System.Globalization;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 
@@ -16,20 +15,12 @@ namespace WrightCover
         
         private MainWindowCommand(Package package)
         {
-            if (package == null)
-            {
-                throw new ArgumentNullException("package");
-            }
+            this.package = package ?? throw new ArgumentNullException(nameof(package));
 
-            this.package = package;
-
-            OleMenuCommandService commandService = this.ServiceProvider.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
-            if (commandService != null)
-            {
-                var menuCommandID = new CommandID(CommandSet, CommandId);
-                var menuItem = new MenuCommand(this.ShowToolWindow, menuCommandID);
-                commandService.AddCommand(menuItem);
-            }
+            if (!(ServiceProvider.GetService(typeof(IMenuCommandService)) is OleMenuCommandService commandService)) return;
+            var menuCommandId = new CommandID(CommandSet, CommandId);
+            var menuItem = new MenuCommand(ShowToolWindow, menuCommandId);
+            commandService.AddCommand(menuItem);
         }
         
         public static MainWindowCommand Instance
@@ -38,14 +29,8 @@ namespace WrightCover
             private set;
         }
         
-        private IServiceProvider ServiceProvider
-        {
-            get
-            {
-                return this.package;
-            }
-        }
-        
+        private IServiceProvider ServiceProvider => package;
+
         public static void Initialize(Package package)
         {
             Instance = new MainWindowCommand(package);
@@ -53,8 +38,8 @@ namespace WrightCover
         
         private void ShowToolWindow(object sender, EventArgs e)
         {
-            ToolWindowPane window = this.package.FindToolWindow(typeof(MainWindow), 0, true);
-            if ((null == window) || (null == window.Frame))
+            var window = package.FindToolWindow(typeof(MainWindow), 0, true);
+            if (window?.Frame == null)
             {
                 throw new NotSupportedException("Cannot create tool window");
             }

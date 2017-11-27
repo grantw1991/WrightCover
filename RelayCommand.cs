@@ -12,8 +12,8 @@ namespace WrightCover
         }
 
         public RelayCommand(Action execute, Func<bool> canExecute)
-            : base(execute != null ? (o) => execute() : (Action<object>)null,
-                canExecute != null ? (o) => canExecute() : (Predicate<object>)null)
+            : base(execute != null ? o => execute() : (Action<object>)null,
+                canExecute != null ? o => canExecute() : (Predicate<object>)null)
         {
         }
     }
@@ -25,8 +25,8 @@ namespace WrightCover
 
         public event EventHandler CanExecuteChanged
         {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
+            add => CommandManager.RequerySuggested += value;
+            remove => CommandManager.RequerySuggested -= value;
         }
 
         public RelayCommand(Action<T> execute)
