@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using System.Xml.Linq;
+using System.Xml.XPath;
 using EnvDTE;
 
 namespace WrightCover
@@ -148,6 +150,16 @@ namespace WrightCover
 
         private void RunDotNetCoreImplementation()
         {
+            var debugFullMessage = HasDebugFullOn();
+            if (!string.IsNullOrEmpty(debugFullMessage))
+            {
+                var message = $"Invalid project setup: {Environment.NewLine}{Environment.NewLine}{debugFullMessage}{Environment.NewLine}{Environment.NewLine}" +
+                              "Project/PropertyGroup/DebugType in the csproj setup correctly, the value must be 'Full'.";
+
+                MessageBox.Show(message, "Debug mode not setup", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                return;
+            }
+
             var runAllBatchFileLocation = Utilities.GetAssemblyDirectory + "\\rundotnetcore.bat";
          
             LogMessages.Add(LogMessage.Log($"Generating rundotnetcore.bat file to: {runAllBatchFileLocation}", LogMessage.LogType.Info));
@@ -156,6 +168,23 @@ namespace WrightCover
 
             BatchFileHelper.RunBatchFile(runAllBatchFileLocation);
             LogMessages.Add(LogMessage.Log("Successfully rundotnetcore.bat batch file", LogMessage.LogType.Success));
+        }
+
+        private string HasDebugFullOn()
+        {
+            var message = string.Empty;
+            foreach (var project in TestProjects.Where(proj => proj.IsSelected))
+            {
+                var csprojDoc = XDocument.Parse(File.ReadAllText(project.AssemblyFilePath));
+                var element = csprojDoc.XPathSelectElement("Project/PropertyGroup/DebugType");
+
+                if (element != null && !string.Equals(element.Value, "full", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    message += $" - The project '{project.Name}'{Environment.NewLine}";
+                }
+            }
+
+            return message;
         }
 
         private void CopyLog()
