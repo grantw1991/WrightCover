@@ -49,11 +49,9 @@ namespace WrightCover
 
         private void LoadProjects()
         {
-
-            ProjectType = FindProjectType();
-
             try
             {
+                ProjectType = FindProjectType();
                 LogMessages.Add(LogMessage.Log("Loading projects", LogMessage.LogType.Info));
                 TestProjects.Clear();
                 AssemblyProjects.Clear();
@@ -117,12 +115,10 @@ namespace WrightCover
 
                 if (ProjectType == ProjectType.DotNetCore)
                 {
-                    //// run dot net core implementation
                     RunDotNetCoreImplementation();
                 }
                 else
                 {
-                    // run dot net framework implementation
                     RunDotNetFrameworkImplementation();
                 }
             }

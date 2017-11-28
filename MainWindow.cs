@@ -8,7 +8,7 @@ namespace WrightCover
     {
         public MainWindow() : base(null)
         {
-            this.Caption = "MainWindow";
+            this.Caption = "Wright Cover";
             
             this.Content = new MainWindowControl();
         }

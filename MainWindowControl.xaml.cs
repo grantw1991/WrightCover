@@ -7,8 +7,8 @@ namespace WrightCover
         public MainWindowControl()
         {
             DataContext = new MainViewModel();
-
-            this.InitializeComponent();
+            
+            InitializeComponent();
         }
     }
 }
