@@ -62,12 +62,15 @@ namespace WrightCover
                     
                     projectsPaths += Environment.NewLine;
                     runningCommands += @"%CD%\\lib\\opencover\\OpenCover.Console.exe -target:""c:\Program Files\dotnet\dotnet.exe"" ";
-                    runningCommands += $@"-targetargs:""test -f netcoreapp2.0 -c Release %filePath{counter - 1}%"" -hideskipped:File -output:coverage.xml -searchdirs:%filePath{counter}% ";
+                    runningCommands += $@"-targetargs:""test --no-build -c Release %filePath{counter - 1}%"" -hideskipped:File -output:coverage.xml -searchdirs:%filePath{counter}% ";
                     runningCommands += $@"-mergeoutput -register:user -oldstyle -excludebyattribute:*.ExcludeFromCodeCoverage* -filter:""+[{projectName}]* "" " + Environment.NewLine;
                     counter++;
                 }
 
+                var sourcePath = projects.First().AssemblyFilePath.Substring(0, projects.First().AssemblyFilePath.IndexOf("\\src\\"));
+
                 streamWriter.WriteLine(projectsPaths);
+                streamWriter.WriteLine($"dotnet build -c Release {sourcePath + "\\src\\"}");
                 streamWriter.WriteLine(runningCommands);
                 streamWriter.WriteLine(@"%CD%\lib\reportgenerator\reportgenerator.exe -reports:coverage.xml -targetdir:coverage");
                 streamWriter.WriteLine(@"start chrome %CD%\coverage\index.htm");
